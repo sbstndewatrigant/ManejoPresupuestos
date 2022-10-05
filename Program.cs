@@ -1,16 +1,52 @@
+using ManejoPresupuestos.Models;
 using ManejoPresupuestos.Servicios;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+
+
+var politicaUsuariosAutenticados = new AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .Build();
+
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new AuthorizeFilter(politicaUsuariosAutenticados));
+});
 builder.Services.AddTransient<IRepositorioTiposCuentas, RepositorioTiposCuentas>();
 builder.Services.AddTransient<IServicioUsuarios, ServicioUsuarios>();
 builder.Services.AddTransient<IRepositorioCuentas, RepositorioCuentas>();
 builder.Services.AddTransient<IRepositorioCategorias, RepositorioCategorias>();
 builder.Services.AddTransient<IRepositorioTransacciones, RepositorioTransacciones>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<IServicioReportes, ServicioReportes>();
 builder.Services.AddAutoMapper(typeof(Program));
-
+builder.Services.AddTransient<IRepositorioUsuarios, RepositorioUsuarios>();
+builder.Services.AddTransient<IUserStore<Usuario>, UsuarioStore>();
+builder.Services.AddTransient<SignInManager<Usuario>>();
+builder.Services.AddIdentityCore<Usuario>(
+//Para cambiar requerimientos de password
+//opciones =>
+//{
+//    opciones.Password.RequireDigit = false;
+//    opciones.Password.RequireLowercase = false;
+//    opciones.Password.RequireUppercase = false;
+//    opciones.Password.RequireNonAlphanumeric = false;
+//}
+);//.AddErrorDescriber<MensajesDeErrorIdentity> (Para cambiar mensajes de error)
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultSignOutScheme = IdentityConstants.ApplicationScheme;
+}).AddCookie(IdentityConstants.ApplicationScheme, options =>
+{
+    options.LoginPath = "/usuarios/login";
+});
 
 var app = builder.Build();
 
@@ -27,10 +63,13 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+//debe ir antes del UseAuthorization
+app.UseAuthentication();
+
 app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Transacciones}/{action=Index}/{id?}");
 
 app.Run();
